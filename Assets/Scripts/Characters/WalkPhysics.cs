@@ -1,13 +1,14 @@
+using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-public class WalkPhysics : MonoBehaviour {
+public class WalkPhysics : IPhysicsComponent {
 
   #region Declarations
+
   #region Options
 
-  public HitBox Box;
   public float WalkSpeed = 8;
   public float WalkAccelerationTime = .2f;
   public float WalkDecelerationTime = .1f;
@@ -21,6 +22,15 @@ public class WalkPhysics : MonoBehaviour {
   #endregion
 
   #region State
+
+  public interface EventListener {
+    void OnFallStart ();
+    void OnJumpEnd ();
+    void OnLand ();
+  }
+  private EventListener listener; public WalkPhysics Listen (EventListener listener) { this.listener = listener; return this; }
+
+  private HitBox box; public HitBox Box { get { return box; } }
   private float Direction { get { return Flipped ? -1 : 1; } }
 
   private bool grounded = false; public bool Grounded { get { return grounded; } }
@@ -37,24 +47,34 @@ public class WalkPhysics : MonoBehaviour {
   #endregion State
 
   #region Helpers
+
+  public override HitShape Shape {
+    get { return box; }
+    set {
+      if (value is HitBox) box = (HitBox) value;
+      else Debug.LogError("Tried to set WalkPhysics shape to non-box");
+    }
+  }
   public float OffsetHorizontal { get { return (Box.OffsetX * Direction) - (Box.W / 2); } }
-  public float X {
+  public override float X {
     get { return transform.position.x + OffsetHorizontal; }
-    private set { transform.position = new Vector3(value - OffsetHorizontal, transform.position.y, transform.position.z); }
+    set { transform.position = new Vector3(value - OffsetHorizontal, transform.position.y, transform.position.z); }
   }
 
-  public float Y {
+  public override float Y {
     get { return transform.position.y + Box.OffsetY; }
-    private set { transform.position = new Vector3(transform.position.x, value, transform.position.z); }
+    set { transform.position = new Vector3(transform.position.x, value, transform.position.z); }
   }
 
   public float XW { get { return X + Box.W; } }
   public float YH { get { return Y + Box.H; } }
 
   #endregion Helpers
+
   #endregion Declarations
 
-  #region Logic 
+  #region Logic
+
   void Update () {
     previous_position = transform.position;
     previous_position.x += OffsetHorizontal;
@@ -67,22 +87,24 @@ public class WalkPhysics : MonoBehaviour {
       grounded = false;
       Y = jump_initial_y + JumpHeight * Mathf.Sqrt(1 - Mathf.Pow(1 - (jump_elapsed_time / JumpTime), JumpSharpness));
       
-      bool ceiling_collision = Game.CurrentChunk.Ceilings.Any(ceiling => {
+      bool ceiling_collision = Game.CurrentChunk.Ceilings.Any((System.Func<Tile, bool>)(ceiling => {
         if ( (X > ceiling.X && X < ceiling.XW) || (XW > ceiling.X && XW < ceiling.XW) || (X < ceiling.X && XW > ceiling.XW) ) {
-          if ( (previous_position.y + Box.H < ceiling.Y && YH >= ceiling.Y) ) {
-            Y = ceiling.Y - Box.H;
+          if ( (previous_position.y + this.Box.H < ceiling.Y && YH >= ceiling.Y) ) {
+            Y = ceiling.Y - this.Box.H;
             return true;
           }
         }
 
         return false;
-      });
+      }));
 
       jump_elapsed_time += 1f / Game.FRAME_RATE;
 
       if (ceiling_collision || jump_elapsed_time >= JumpTime) {
-        jumping = false;
         velocity.y = 0;
+        jumping = false;
+        listener.OnJumpEnd();
+        listener.OnFallStart();
       }
       else velocity.y = Y - previous_position.y;
     } else if (!grounded) {
@@ -90,24 +112,12 @@ public class WalkPhysics : MonoBehaviour {
       Y += velocity.y / Game.FRAME_RATE;
     }
 
-    // Check for collisions
 
-    grounded = Game.CurrentChunk.Floors.Any(floor => {
-      if ((X > floor.X && X < floor.XW) || (XW > floor.X && XW < floor.XW)) {
-        if ( (previous_position.y > floor.YH && Y <= floor.YH) || Y == floor.YH ) {
-          Y = floor.YH;
-          velocity.y = 0;
-          return true;
-        }
-      }
-      return false;
-    });
+    CheckVerticalCollision();
 
     #endregion Vertical
 
     #region Horizontal
-
-    // Update position
 
     if (input_x != 0) {
       velocity.x += ( (WalkSpeed / Game.FRAME_RATE) / (WalkAccelerationTime * Game.FRAME_RATE) ) * input_x;
@@ -121,8 +131,6 @@ public class WalkPhysics : MonoBehaviour {
     }
     X += velocity.x;
 
-    // Check for collisions
-
     CheckHorizontalCollision();
 
     #endregion Horizontal
@@ -135,56 +143,81 @@ public class WalkPhysics : MonoBehaviour {
     }
   }
 
+  #endregion Logic
+
+  #region Input
+
+  public void CheckVerticalCollision () {
+    grounded = Game.CurrentChunk.Floors.Any(floor => {
+      if ( (X > floor.X && X < floor.XW) || (XW > floor.X && XW < floor.XW) ) {
+        if ( (previous_position.y > floor.YH && Y <= floor.YH) || Y == floor.YH ) {
+          if ( Y < floor.YH ) {
+            Y = floor.YH;
+            listener.OnLand();
+          }
+          velocity.y = 0;
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
   public void CheckHorizontalCollision () {
     var delta_x = X - previous_position.x;
 
-    if (delta_x > 0) Game.CurrentChunk.WallsLeft.Any(wall => {
-      if (wall.CheckCollision(previous_position.x + Box.W, XW, Y, Box.H)) {
-        X = wall.X - Box.W;
+    if (delta_x > 0) Game.CurrentChunk.WallsLeft.Any((System.Func<Wall, bool>)(wall => {
+      if (wall.CheckCollision(previous_position.x + this.Box.W, XW, Y, (float)this.Box.H)) {
+        X = wall.X - this.Box.W;
         velocity.x = 0;
         return true;
       }
       return false;
-    });
-    else if (delta_x < 0) Game.CurrentChunk.WallsRight.Any(wall => {
-      if (wall.CheckCollision(previous_position.x, X, Y, Box.H)) {
+    }));
+    else if (delta_x < 0) Game.CurrentChunk.WallsRight.Any((System.Func<Wall, bool>)(wall => {
+      if (wall.CheckCollision(previous_position.x, X, Y, (float)this.Box.H)) {
         X = wall.X;
         velocity.x = 0;
         return true;
       }
       return false;
-    });
-
-    // previous_position = new Vector3(X, Y);
+    }));
   }
-  #endregion Logic
 
-  #region Input
-  public void Displace (float x, float y) { Displace(new Vector2(x, y)); }
-  public void Displace (Vector2 displacement) {
+  public override void Displace (Vector2 displacement) {
     X += displacement.x;
     Y += displacement.y;
-    CheckHorizontalCollision();
-    // TODO: check vertical collision
+    CheckCollision();
   }
 
-  [ContextMenu("Jump")]
-  public void Jump (bool pressed) {
-    if (pressed) {
-      if (grounded) {
-        jumping = true;
-        jump_initial_y = Y;
-        jump_elapsed_time = 0;
-      }
+  public override void CheckCollision () {
+    CheckHorizontalCollision();
+    CheckVerticalCollision();
+  }
+
+  public void Jump () {
+    if (grounded) {
+      jumping = true;
+      jump_initial_y = Y;
+      jump_elapsed_time = 0;
     }
-    else jumping = false;
+  }
+
+  public void StopJump () {
+    if (jumping) {
+      jumping = false;
+      listener.OnJumpEnd();
+    }
   }
 
   public void Walk (float input) {
     input_x = input;
   }
+
   #endregion
 }
+
+#region Inspector
 
 [CustomEditor(typeof(WalkPhysics))]
 public class WalkPhysicsEditor : Editor {
@@ -241,3 +274,5 @@ public class WalkPhysicsEditor : Editor {
     }
   }
 }
+
+#endregion Inspector

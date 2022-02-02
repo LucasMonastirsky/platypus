@@ -33,9 +33,11 @@ public class Actioner : MonoBehaviour {
 
   public void Queue (Action new_action) {
     if (CurrentStep.IsCancellableBy(new_action)) {
+      Debug.Log($"Queued {new_action.Name}, cancelled {CurrentAction.Name}");
       CurrentStep.Cancel();
       current_action = new_action.Start(this);
     } else { // this might not work idk
+      Debug.Log($"Queued {new_action.Name}, did not cancel {CurrentAction.Name}");
       queued_action = new_action;
       current_action.OnEnd = () => {
         current_action = new_action.Start(this);

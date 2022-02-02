@@ -1,13 +1,13 @@
 ﻿using UnityEditor;
 using UnityEngine;
 
-public class Player : MonoBehaviour {
+public class Player : MonoBehaviour, WalkPhysics.EventListener {
   private WalkPhysics walk;
   private Actioner actioner;
   private PlayerActions actions;
 
   void Awake () {
-    if ( (walk = this.gameObject.GetComponentInChildren<WalkPhysics>()) == null )
+    if ( (walk = this.gameObject.GetComponentInChildren<WalkPhysics>().Listen(this)) == null )
       Debug.LogError("Player has no Walk component");
     if ( (actioner = this.gameObject.GetComponent<Actioner>()) == null )
       Debug.LogError("Player has no Actioner component");
@@ -26,11 +26,16 @@ public class Player : MonoBehaviour {
       actioner.Queue(actions.Crouch);
     else if (Input.GetButtonUp("Crouch"))
       actioner.Queue(actions.Idle);
-    if (actioner.CurrentAction.Name == "Idle")
+
+    if (actioner.CurrentAction.Name == "Idle" || actioner.CurrentAction.Name == "Jump" || actioner.CurrentAction.Name == "Fall")
       walk.Walk(Input.GetAxis("Horizontal"));
     actioner.InputDirection(Input.GetAxis("Horizontal"));
-    if (Input.GetButtonDown("Jump")) walk.Jump(true);
-    if (Input.GetButtonUp("Jump")) walk.Jump(false);
+    
+    if (Input.GetButtonDown("Jump")) {
+      walk.Jump();
+      actioner.Queue(actions.Jump);
+    }
+    if (Input.GetButtonUp("Jump")) walk.StopJump();
     if (Input.GetButtonDown("Fire1")) TestAttack();
 
     #endregion
@@ -40,4 +45,16 @@ public class Player : MonoBehaviour {
   void TestAttack () {
     actioner.Queue(actions.TestAttack);
   }
+
+  #region WalkPhysics Events
+
+  public void OnFallStart () {
+    actioner.Queue(actions.Fall);
+  }
+  public void OnJumpEnd () { }
+  public void OnLand () {
+    actioner.Queue(actions.Idle);
+  }
+
+  #endregion
 }

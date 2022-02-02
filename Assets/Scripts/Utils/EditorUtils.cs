@@ -43,13 +43,15 @@ public class ActionInspector {
           EditorGUILayout.LabelField("Sprite Offset", EditorStyles.boldLabel);
           step.SpriteOffset = EditorGUILayout.Vector2Field(GUIContent.none, step.SpriteOffset);
 
-          EditorGUILayout.LabelField("Hit-Box Offset and Size", EditorStyles.boldLabel);
-          var hitbox_offset = EditorGUILayout.Vector2Field(GUIContent.none, new Vector2(step.MovementBox.OffsetX, step.MovementBox.OffsetY));
-          step.MovementBox.OffsetX = hitbox_offset.x;
-          step.MovementBox.OffsetY = hitbox_offset.y;
-          var size = EditorGUILayout.Vector2Field(GUIContent.none, new Vector2(step.MovementBox.W, step.MovementBox.H));
-          step.MovementBox.W = size.x;
-          step.MovementBox.H = size.y;
+          if (step.PhysicsShape is HitBox) {
+            EditorGUILayout.LabelField("Hit-Box Offset and Size", EditorStyles.boldLabel);
+            var hitbox_offset = EditorGUILayout.Vector2Field(GUIContent.none, new Vector2(step.PhysicsShape.OffsetX, step.PhysicsShape.OffsetY));
+            step.PhysicsShape.OffsetX = hitbox_offset.x;
+            step.PhysicsShape.OffsetY = hitbox_offset.y;
+            var size = EditorGUILayout.Vector2Field(GUIContent.none, new Vector2(((HitBox) step.PhysicsShape).W, ((HitBox) step.PhysicsShape).H));
+            ((HitBox) step.PhysicsShape).W = size.x;
+            ((HitBox) step.PhysicsShape).H = size.y;
+          }
 
           EditorGUILayout.LabelField("Start and Update Displacement", EditorStyles.boldLabel);
           step.StartDisplacement = EditorGUILayout.Vector2Field(GUIContent.none, step.StartDisplacement);

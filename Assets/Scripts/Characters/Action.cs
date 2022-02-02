@@ -51,11 +51,11 @@ public class Action {
 public class ActionStep {
   #region Options
 
-  public int Duration;
-  public ActionType[] CancellableBy = {};
+  public int Duration = 1;
+  public ActionType[] CancellableBy = CANCELLABLE_BY.ALL;
   public bool AllowsFlip = true;
   public bool Freeze = false;
-  public HitBox MovementBox;
+  public HitShape PhysicsShape;
   public Vector2 StartDisplacement, UpdateDisplacement;
   public Vector2 SpriteOffset = new Vector2(0, 0);
 
@@ -92,8 +92,10 @@ public class ActionStep {
     frame_count = 0;
     actioner.SetSprite(sprite);
     actioner.SpriteOffset = SpriteOffset;
-    physics.Box = MovementBox;
-    physics.Displace(StartDisplacement.x * actioner.Direction, StartDisplacement.y);
+    physics.Shape = PhysicsShape;
+    if (StartDisplacement != null)
+      physics.Displace(StartDisplacement.x * actioner.Direction, StartDisplacement.y);
+  
     return this;
   }
 
@@ -102,7 +104,8 @@ public class ActionStep {
       parent_action.NextStep();
       return;
     }
-    if (UpdateDisplacement != null) physics.Displace(UpdateDisplacement.x * actioner.Direction, UpdateDisplacement.y);
+    if (UpdateDisplacement != null)
+      physics.Displace(UpdateDisplacement.x * actioner.Direction, UpdateDisplacement.y);
   }
 
   public virtual void End () {}
