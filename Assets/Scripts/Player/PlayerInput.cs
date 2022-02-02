@@ -1,13 +1,12 @@
-﻿using UnityEditor;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class Player : MonoBehaviour, WalkPhysics.EventListener {
-  private WalkPhysics walk;
+public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
+  private WalkPhysics physics;
   private Actioner actioner;
   private PlayerActions actions;
 
   void Awake () {
-    if ( (walk = this.gameObject.GetComponentInChildren<WalkPhysics>().Listen(this)) == null )
+    if ( (physics = this.gameObject.GetComponentInChildren<WalkPhysics>().Listen(this)) == null )
       Debug.LogError("Player has no Walk component");
     if ( (actioner = this.gameObject.GetComponent<Actioner>()) == null )
       Debug.LogError("Player has no Actioner component");
@@ -20,25 +19,25 @@ public class Player : MonoBehaviour, WalkPhysics.EventListener {
   }
 
   void Update () {
-    #region Input
-
     if (Input.GetButtonDown("Crouch"))
       actioner.Queue(actions.Crouch);
-    else if (Input.GetButtonUp("Crouch"))
+    else if (Input.GetButtonUp("Crouch") && actioner.CurrentAction.Name == actions.Crouch.Name)
+      actioner.Queue(actions.Idle);
+
+    if (actioner.CurrentAction.Name == "Idle" && Input.GetAxis("Horizontal") != 0)
+      actioner.Queue(actions.Walk);
+    if (actioner.CurrentAction.Name == "Walk" && Input.GetAxis("Horizontal") == 0)
       actioner.Queue(actions.Idle);
 
     if (actioner.CurrentAction.Name == "Idle" || actioner.CurrentAction.Name == "Jump" || actioner.CurrentAction.Name == "Fall")
-      walk.Walk(Input.GetAxis("Horizontal"));
-    actioner.InputDirection(Input.GetAxis("Horizontal"));
+      physics.Walk(Input.GetAxis("Horizontal"));
     
-    if (Input.GetButtonDown("Jump")) {
-      walk.Jump();
-      actioner.Queue(actions.Jump);
-    }
-    if (Input.GetButtonUp("Jump")) walk.StopJump();
-    if (Input.GetButtonDown("Fire1")) TestAttack();
+    if (Input.GetButtonDown("Jump")) actioner.Queue(actions.Jump);
+    else if (Input.GetButtonUp("Jump")) physics.StopJump();
+  
+    if (Input.GetButtonDown("Fire1") && physics.Grounded) TestAttack();
 
-    #endregion
+    actioner.InputDirection(Input.GetAxis("Horizontal"));
   }
 
   [ContextMenu("Test Attack")]

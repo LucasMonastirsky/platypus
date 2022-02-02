@@ -112,7 +112,6 @@ public class WalkPhysics : IPhysicsComponent {
       Y += velocity.y / Game.FRAME_RATE;
     }
 
-
     CheckVerticalCollision();
 
     #endregion Vertical
@@ -166,7 +165,7 @@ public class WalkPhysics : IPhysicsComponent {
   public void CheckHorizontalCollision () {
     var delta_x = X - previous_position.x;
 
-    if (delta_x > 0) Game.CurrentChunk.WallsLeft.Any((System.Func<Wall, bool>)(wall => {
+    if (delta_x > 0) Game.CurrentChunk.WallsLeft.Any((wall => {
       if (wall.CheckCollision(previous_position.x + this.Box.W, XW, Y, (float)this.Box.H)) {
         X = wall.X - this.Box.W;
         velocity.x = 0;
@@ -207,6 +206,7 @@ public class WalkPhysics : IPhysicsComponent {
     if (jumping) {
       jumping = false;
       listener.OnJumpEnd();
+      listener.OnFallStart();
     }
   }
 
