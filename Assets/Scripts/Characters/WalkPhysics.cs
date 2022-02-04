@@ -159,20 +159,15 @@ public class WalkPhysics : IPhysicsComponent {
       var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkDecelerationTime * Game.FRAME_RATE);
 
       if (input_x != 0) {
-        if (velocity.x == 0) {
+        if (velocity.x == 0)
           Accelerate(acceleration_rate, WalkSpeed);
-        }
         else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x)) { // input direction equals velocity direction
-          if (Mathf.Abs(velocity.x) > WalkSpeed / Game.FRAME_RATE) { // if passing top speed, decelerate
+          if (Mathf.Abs(velocity.x) > WalkSpeed / Game.FRAME_RATE) // if passing top speed, decelerate
             Accelerate(-deceleration_rate, WalkSpeed);
-          }
-          else { // accelerate
-            Accelerate(acceleration_rate, WalkSpeed);
-          }
+          else Accelerate(acceleration_rate, WalkSpeed);
         }
-        else { // walking against velocity
+        else // walking against velocity
           velocity.x += deceleration_rate * input_x;
-        }
       }
       else { // no input
         if (velocity.x != 0) {
@@ -188,15 +183,12 @@ public class WalkPhysics : IPhysicsComponent {
         var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirAccelerationTime * Game.FRAME_RATE);
         var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirDecelerationTime * Game.FRAME_RATE);
 
-        if (velocity.x == 0) {
+        if (velocity.x == 0)
           Accelerate(acceleration_rate, WalkSpeed);
-        }
-        else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x)) {
+        else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x))
           Accelerate(acceleration_rate, WalkSpeed);
-        }
-        else { // input against velocity
+        else // input against velocity
           velocity.x += deceleration_rate * input_x;
-        }
       }
       else { // no input
         if (velocity.x != 0) {
