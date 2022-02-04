@@ -15,22 +15,16 @@ public class Wall {
 
   public bool CheckCollision (float previous_x, float target_x, float target_y, float target_height) {
     var target_yh = target_y + target_height;
+    bool VerticalMatch () { return (
+      (target_y >= Y && target_y <= YH)
+      || (target_yh >= Y && target_yh <= YH)
+      || (target_y <= Y && target_yh >= YH)
+    );}
 
-    if (Side == SIDE.LEFT) return
-      ( previous_x <= X + Physics.ERROR_MARGIN && target_x >= X - Physics.ERROR_MARGIN)
-      && (
-        (target_y >= Y && target_y <= YH)
-        || (target_yh >= Y && target_yh <= YH)
-        || (target_y <= Y && target_yh >= YH)
-      );
-    else return (
-      ( previous_x >= X - Physics.ERROR_MARGIN && target_x <= X + Physics.ERROR_MARGIN )
-      && (
-        (target_y >= Y && target_y <= YH)
-        || (target_yh >= Y && target_yh <= YH)
-        || (target_y <= Y && target_yh >= YH)
-      )
-    );
+    return ( Side == SIDE.LEFT
+      ? ( previous_x <= X + Physics.ERROR_MARGIN && target_x >= X - Physics.ERROR_MARGIN )
+      : ( previous_x >= X - Physics.ERROR_MARGIN && target_x <= X + Physics.ERROR_MARGIN )
+    ) && VerticalMatch();
   }
 
   public void DrawCollision (Color color) {

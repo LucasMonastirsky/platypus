@@ -13,10 +13,22 @@ public class WalkPhysics : IPhysicsComponent {
   public float WalkAccelerationTime = .2f;
   public float WalkDecelerationTime = .1f;
 
+  public float AirAccelerationTime = .3f;
+  public float AirDecelerationTime = .2f;
+  public float AirPassiveDecelerationTime = .2f;
+
   public float JumpTime = .3f;
   public float JumpHeight = 2.3f;
   public float JumpSharpness = 1.3f;
-  public float GravityAcceleration = 26;
+  public float GravityAcceleration = 1.5f;
+
+  public float WallHangFallAcceleration = .5f;
+  public float WallHangFallSpeedMax = 2f;
+  public float WallHangDeceleration = 2f;
+  public float WallHangSize = .5f;
+  public float WallHangOffset = .2f;
+  public float WallJumpHorizontalSpeed = 10f;
+
   public bool Flipped = false;
 
   #endregion
@@ -43,6 +55,10 @@ public class WalkPhysics : IPhysicsComponent {
   private bool jumping = false; public bool Jumping { get { return jumping; } }
   [SerializeField] private float jump_elapsed_time;
   [SerializeField] private float jump_initial_y;
+
+  // Wall Hang
+  private Wall colliding_wall = null;
+  private bool wall_hanging = false;
   
   #endregion State
 
@@ -81,13 +97,12 @@ public class WalkPhysics : IPhysicsComponent {
 
     #region Vertical
 
-    // Update position
-
     if (jumping) {
       grounded = false;
       Y = jump_initial_y + JumpHeight * Mathf.Sqrt(1 - Mathf.Pow(1 - (jump_elapsed_time / JumpTime), JumpSharpness));
       
-      bool ceiling_collision = Game.CurrentChunk.Ceilings.Any((System.Func<Tile, bool>)(ceiling => {
+      jump_elapsed_time += 1f / Game.FRAME_RATE;
+      bool ceiling_collision = Game.CurrentChunk.Ceilings.Any(ceiling => {
         if ( (X > ceiling.X && X < ceiling.XW) || (XW > ceiling.X && XW < ceiling.XW) || (X < ceiling.X && XW > ceiling.XW) ) {
           if ( (previous_position.y + this.Box.H < ceiling.Y && YH >= ceiling.Y) ) {
             Y = ceiling.Y - this.Box.H;
@@ -96,9 +111,7 @@ public class WalkPhysics : IPhysicsComponent {
         }
 
         return false;
-      }));
-
-      jump_elapsed_time += 1f / Game.FRAME_RATE;
+      });
 
       if (ceiling_collision || jump_elapsed_time >= JumpTime) {
         velocity.y = 0;
@@ -107,46 +120,132 @@ public class WalkPhysics : IPhysicsComponent {
         listener.OnFallStart();
       }
       else velocity.y = Y - previous_position.y;
-    } else if (!grounded) {
-      velocity.y -= GravityAcceleration / Game.FRAME_RATE;
-      Y += velocity.y / Game.FRAME_RATE;
     }
-
-    CheckVerticalCollision();
+    else if (!grounded) {
+      if ( input_x != 0
+        && colliding_wall != null
+        && input_x == (colliding_wall?.Side == SIDE.LEFT ? 1 : -1)
+        && WallHangSize < colliding_wall.Height
+        && Y + WallHangOffset > colliding_wall.Y
+        && Y + WallHangOffset + WallHangSize < colliding_wall.YH
+      ) { // Wall Hang
+        wall_hanging = true;
+        if (velocity.y > 0) {
+          velocity.y -= WallHangDeceleration / Game.FRAME_RATE;
+          Mathf.Clamp(velocity.y, 0, Mathf.Infinity);
+        } else {
+          velocity.y -= WallHangFallAcceleration / Game.FRAME_RATE;
+          Mathf.Clamp(velocity.y, -WallHangFallSpeedMax / Game.FRAME_RATE, Mathf.Infinity);
+        }
+        Y += velocity.y;
+      } else {
+        wall_hanging = false;
+        velocity.y -= GravityAcceleration / Game.FRAME_RATE;
+        Y += velocity.y;
+      }
+    }
 
     #endregion Vertical
 
     #region Horizontal
 
-    if (input_x != 0) {
-      velocity.x += ( (WalkSpeed / Game.FRAME_RATE) / (WalkAccelerationTime * Game.FRAME_RATE) ) * input_x;
-      if ( Mathf.Abs(velocity.x) > (WalkSpeed / Game.FRAME_RATE) )
-        velocity.x = (WalkSpeed / Game.FRAME_RATE) * input_x;
-    } else if ( velocity.x != 0 ) {
-      var polarity = velocity.x > 0 ? 1 : -1;
-      velocity.x -= ( (WalkSpeed / Game.FRAME_RATE) / (WalkDecelerationTime * Game.FRAME_RATE) ) * polarity;
-      if ( polarity != (velocity.x > 0 ? 1 : -1) )
-        velocity.x = 0;
+    void Accelerate (float rate, float max) {
+      velocity.x += rate * input_x;
+      velocity.x = Mathf.Clamp(velocity.x, -max / Game.FRAME_RATE, max / Game.FRAME_RATE);
     }
-    X += velocity.x;
 
-    CheckHorizontalCollision();
+    if (grounded) {
+      var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkAccelerationTime * Game.FRAME_RATE);
+      var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkDecelerationTime * Game.FRAME_RATE);
+
+      if (input_x != 0) {
+        if (velocity.x == 0) {
+          Accelerate(acceleration_rate, WalkSpeed);
+        }
+        else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x)) { // input direction equals velocity direction
+          if (Mathf.Abs(velocity.x) > WalkSpeed / Game.FRAME_RATE) { // if passing top speed, decelerate
+            Accelerate(-deceleration_rate, WalkSpeed);
+          }
+          else { // accelerate
+            Accelerate(acceleration_rate, WalkSpeed);
+          }
+        }
+        else { // walking against velocity
+          velocity.x += deceleration_rate * input_x;
+        }
+      }
+      else { // no input
+        if (velocity.x != 0) {
+          var sign = Mathf.Sign(velocity.x);
+          velocity.x -= deceleration_rate * sign;
+          if (sign != Mathf.Sign(velocity.x)) // if we overcompensated
+            velocity.x = 0;
+        }
+      }
+    }
+    else { // if airborne
+      if (input_x != 0) {
+        var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirAccelerationTime * Game.FRAME_RATE);
+        var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirDecelerationTime * Game.FRAME_RATE);
+
+        if (velocity.x == 0) {
+          Accelerate(acceleration_rate, WalkSpeed);
+        }
+        else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x)) {
+          Accelerate(acceleration_rate, WalkSpeed);
+        }
+        else { // input against velocity
+          velocity.x += deceleration_rate * input_x;
+        }
+      }
+      else { // no input
+        if (velocity.x != 0) {
+          var old_sign = Mathf.Sign(velocity.x);
+          velocity.x -= WalkSpeed / (AirPassiveDecelerationTime * Game.FRAME_RATE) * old_sign;
+          if (old_sign != Mathf.Sign(velocity.x))
+            velocity.x = 0;
+        }
+      }
+    }
+
+    X += velocity.x;
 
     #endregion Horizontal
 
+    CheckFallCollision();
+    CheckHorizontalCollision();
+
+    #region Debug
+
     if (DebugOptions.DrawPlayerMovementCollision) {
-      Debug.DrawLine(new Vector2(X, YH), new Vector2(XW, YH), Color.green);
-      Debug.DrawLine(new Vector2(X, Y), new Vector2(XW, Y), Color.green);
-      Debug.DrawLine(new Vector2(X, Y), new Vector2(X, YH), Color.green);
-      Debug.DrawLine(new Vector2(XW, Y), new Vector2(XW, YH), Color.green);
+      DebugUtils.DrawRectangle(X, Y, Box.W, Box.H, Color.green);
+
+      if (!grounded) {
+        DebugUtils.DrawRectangle(X, Y + WallHangOffset, Box.W, WallHangSize, wall_hanging ? Color.blue : Color.green);
+      }
     }
+
+    if (DebugOptions.DrawPlayerMovementInputs) {
+      var mid = new Vector2(X + Box.W / 2, Y + Box.H / 2);
+
+      if (input_x != 0) {
+        DebugUtils.DrawThickLine(mid.x, Y, input_x == 1 ? XW : X, Y, Color.white);
+        DebugUtils.DrawThickLine(mid.x, Y, mid.x + Box.W / 2 * (Velocity.x / (WalkSpeed / Game.FRAME_RATE)), Y, Color.red);
+      }
+      if (jumping) {
+        DebugUtils.DrawThickLine(mid.x, mid.y, mid.x, YH, Color.white);
+        DebugUtils.DrawThickLine(mid.x, mid.y, mid.x, mid.y + (Box.H / 2) * (jump_elapsed_time / JumpTime), Color.red);
+      }
+    }
+
+    #endregion Debug
   }
 
   #endregion Logic
 
   #region Input
 
-  public void CheckVerticalCollision () {
+  public void CheckFallCollision () {
     grounded = Game.CurrentChunk.Floors.Any(floor => {
       if ( (X > floor.X && X < floor.XW) || (XW > floor.X && XW < floor.XW) ) {
         if ( (previous_position.y > floor.YH && Y <= floor.YH) || Y == floor.YH ) {
@@ -160,15 +259,18 @@ public class WalkPhysics : IPhysicsComponent {
       }
       return false;
     });
+    previous_position.y = Y;
   }
 
   public void CheckHorizontalCollision () {
     var delta_x = X - previous_position.x;
+    colliding_wall = null;
 
     if (delta_x > 0) Game.CurrentChunk.WallsLeft.Any((wall => {
       if (wall.CheckCollision(previous_position.x + this.Box.W, XW, Y, (float)this.Box.H)) {
         X = wall.X - this.Box.W;
-        velocity.x = 0;
+        Mathf.Clamp(velocity.x, -Mathf.Infinity, 0);
+        colliding_wall = wall;
         return true;
       }
       return false;
@@ -176,22 +278,26 @@ public class WalkPhysics : IPhysicsComponent {
     else if (delta_x < 0) Game.CurrentChunk.WallsRight.Any((System.Func<Wall, bool>)(wall => {
       if (wall.CheckCollision(previous_position.x, X, Y, (float)this.Box.H)) {
         X = wall.X;
-        velocity.x = 0;
+        Mathf.Clamp(velocity.x, 0, Mathf.Infinity);
+        colliding_wall = wall;
         return true;
       }
       return false;
     }));
+
+    previous_position.x = X;
   }
 
   public override void Displace (Vector2 displacement) {
     X += displacement.x;
     Y += displacement.y;
-    CheckCollision();
+    if (displacement.y < 0) CheckFallCollision();
+    if (displacement.x != 0) CheckHorizontalCollision();
   }
 
   public override void CheckCollision () {
     CheckHorizontalCollision();
-    CheckVerticalCollision();
+    CheckFallCollision();
   }
 
   public void Jump () {
@@ -199,6 +305,12 @@ public class WalkPhysics : IPhysicsComponent {
       jumping = true;
       jump_initial_y = Y;
       jump_elapsed_time = 0;
+    }
+    else if (wall_hanging) {
+      jumping = true;
+      jump_initial_y = Y;
+      jump_elapsed_time = 0;
+      velocity.x = (WallJumpHorizontalSpeed / Game.FRAME_RATE) * (int) colliding_wall.Side;
     }
   }
 
@@ -244,6 +356,17 @@ public class WalkPhysicsEditor : Editor {
     component.WalkSpeed = EditorGUILayout.FloatField("Max Speed", component.WalkSpeed);
     component.WalkAccelerationTime = EditorGUILayout.FloatField("Acceleration Time", component.WalkAccelerationTime);
     component.WalkDecelerationTime = EditorGUILayout.FloatField("Deceleration Time", component.WalkDecelerationTime);
+    component.AirAccelerationTime = EditorGUILayout.FloatField("Air Acceleration Time", component.AirAccelerationTime);
+    component.AirDecelerationTime = EditorGUILayout.FloatField("Air Deceleration Time", component.AirDecelerationTime);
+
+    EditorGUILayout.Separator();
+
+    EditorGUILayout.LabelField("Wall Hang", EditorStyles.boldLabel);
+    component.WallHangFallSpeedMax = EditorGUILayout.FloatField("Max Speed", component.WallHangFallSpeedMax);
+    component.WallHangFallAcceleration = EditorGUILayout.FloatField("Acceleration", component.WallHangFallAcceleration);
+    component.WallHangDeceleration = EditorGUILayout.FloatField("Deceleration", component.WallHangDeceleration);
+    component.WallHangSize = EditorGUILayout.FloatField("Size", component.WallHangSize);
+    component.WallHangOffset = EditorGUILayout.FloatField("Offset", component.WallHangOffset);
 
     if (Application.isPlaying) {
       EditorGUILayout.Separator();
@@ -259,19 +382,8 @@ public class WalkPhysicsEditor : Editor {
       EditorGUILayout.Vector2Field("Per Frame", component.Velocity);
       EditorGUILayout.Vector2Field("Per Second", component.Velocity * 60);
     }
-  }
 
-  void OnSceneGUI () {
-    var walk = target as WalkPhysics;
-
-    Handles.color = Color.green;
-
-    if (walk.Box != null) {
-      Handles.DrawLine(new Vector2(walk.X, walk.YH), new Vector2(walk.XW, walk.YH));
-      Handles.DrawLine(new Vector2(walk.X, walk.Y), new Vector2(walk.XW, walk.Y));
-      Handles.DrawLine(new Vector2(walk.X, walk.Y), new Vector2(walk.X, walk.YH));
-      Handles.DrawLine(new Vector2(walk.XW, walk.Y), new Vector2(walk.XW, walk.YH));
-    }
+    if (DebugOptions.FastPlayerInspector) Repaint();
   }
 }
 

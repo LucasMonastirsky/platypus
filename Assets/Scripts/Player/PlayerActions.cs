@@ -77,7 +77,7 @@ public class PlayerActions : MonoBehaviour {
     Steps = new ActionStep[] {
       new ActionStep () {
         Freeze = true,
-        PhysicsShape = new HitBox(0, 0, 1, 1),
+        PhysicsShape = new HitBox(0, 0, 1, 1.7f),
       },
     },
     OnStart = (actioner) => { ((WalkPhysics) actioner.Physics).Jump(); }
@@ -90,11 +90,11 @@ public class PlayerActions : MonoBehaviour {
     Steps = new ActionStep[] {
       new ActionStep () {
         Duration = 15,
-        PhysicsShape = new HitBox(0, 0, 1, 1),
+        PhysicsShape = new HitBox(0, 0, 1, 1.7f),
       }, new ActionStep () {
         Duration = 1,
         Freeze = true,
-        PhysicsShape = new HitBox(0, 0, 1, 1),
+        PhysicsShape = new HitBox(0, 0, 1, 1.7f),
       }
     }
   };

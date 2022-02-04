@@ -48,14 +48,16 @@ public class ActionStep {
     physics.Shape = PhysicsShape;
     if (StartDisplacement != null)
       physics.Displace(StartDisplacement.x * actioner.Direction, StartDisplacement.y);
+
     OnStart(actioner);
+    Update();
   
     return this;
   }
 
   public virtual void Update () {
     if (!Freeze && ++frame_count > Duration) {
-      OnEnd(actioner);
+      End();
       parent_action.NextStep();
       return;
     }
@@ -65,7 +67,9 @@ public class ActionStep {
     OnUpdate(actioner);
   }
 
-  public virtual void End () {}
+  public virtual void End () {
+    OnEnd(actioner);
+  }
 
   public virtual void Cancel () {}
 }
