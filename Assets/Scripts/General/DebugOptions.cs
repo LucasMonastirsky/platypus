@@ -5,19 +5,19 @@ public class DebugOptions : MonoBehaviour {
   private static DebugOptions instance;
 
   public static bool FastPlayerInspector { get { return instance.fast_player_inspector; } set { instance.fast_player_inspector = value; } }
-  public bool fast_player_inspector;
+  public bool fast_player_inspector = false;
 
   public static bool DrawPlayerMovementInputs { get { return instance.draw_player_movement_inputs; } set { instance.draw_player_movement_inputs = value; } }
-  public bool draw_player_movement_inputs;
+  public bool draw_player_movement_inputs = false;
 
   public static bool DrawPlayerMovementCollision { get { return instance.draw_player_movement_collision; } set { instance.draw_player_movement_collision = value; } }
-  public bool draw_player_movement_collision;
+  public bool draw_player_movement_collision = false;
 
   public static bool DrawTerrainCollision { get { return instance.draw_terrain_collision; } set { instance.draw_terrain_collision = value; } }
-  public bool draw_terrain_collision;
+  public bool draw_terrain_collision = false;
 
   public static bool DrawAttackHitShapes { get { return instance.draw_attack_hit_shapes; } set { instance.draw_attack_hit_shapes = value; } }
-  public bool draw_attack_hit_shapes;
+  public bool draw_attack_hit_shapes = false;
 
   public static float LineThickness { get { return instance.line_thickness; } set { instance.line_thickness = value; } }
   public float line_thickness = .035f;

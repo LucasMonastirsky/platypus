@@ -99,12 +99,85 @@ public class PlayerActions : MonoBehaviour {
     }
   };
 
+  public Action WallSlide = new Action () {
+    Name = "WallSlide",
+    Type = ActionType.Other,
+    Loops = true,
+    Steps = new ActionStep[] {
+      new ActionStep () {
+        Duration = 1,
+        PhysicsShape = new HitBox(0, 0, 1, 1.7f),
+      },
+    }
+  };
+
+  public Action Land = new Action () {
+    Name = "Land",
+    Type = ActionType.Other,
+    Loops = false,
+    Steps = new ActionStep[] {
+      new ActionStep () {
+        Duration = 2,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+      }, new ActionStep () {
+        Duration = 10,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+      }, new ActionStep () {
+        Duration = 2,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+      },
+    }
+  };
+
+  public Action PreSafetyRoll = new Action () {
+    Name = "PreSafetyRoll",
+    Type = ActionType.Other,
+    Steps = new ActionStep[] {
+      new ActionStep () {
+        Duration = 30,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+      },
+    },
+  };
+
+  public Action SafetyRoll = new Action () {
+    Name = "SafetyRoll",
+    Type = ActionType.Other,
+    Steps = new ActionStep[] {
+      new ActionStep () {
+        Duration = 3,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+        StartDisplacement = new Vector2(0, 0),
+        UpdateDisplacement = new Vector2(0, 0),
+      }, new ActionStep () {
+        Duration = 3,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+        StartDisplacement = new Vector2(.5f, 0),
+        UpdateDisplacement = new Vector2(.0f, 0),
+      }, new ActionStep () {
+        Duration = 3,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+        StartDisplacement = new Vector2(.5f, 0),
+        UpdateDisplacement = new Vector2(.1f, 0),
+      }, new ActionStep () {
+        Duration = 3,
+        PhysicsShape = new HitBox(0, 0, 1, 1f),
+        StartDisplacement = new Vector2(.5f, 0),
+        UpdateDisplacement = new Vector2(0, 0),
+      },
+    },
+  };
+
   void Awake () {
     Idle.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/Idle"));
     Crouch.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/Crouch"));
     Walk.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/Walk"));
     Jump.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/Jump"));
     Fall.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/Fall"));
+    WallSlide.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/WallSlide"));
+    Land.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/Land"));
+    PreSafetyRoll.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/PreSafetyRoll"));
+    SafetyRoll.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/SafetyRoll"));
     TestAttack.Initialize(Resources.LoadAll<Sprite>($"Sprites/Test/Player/TestAttack"));
   }
 }
@@ -114,7 +187,18 @@ public class PlayerActionsEditor : Editor {
   private ActionInspector action_inspector = new ActionInspector();
   public override void OnInspectorGUI() {
     var player = (PlayerActions) target;
-    var actions = new [] { player.Idle, player.Crouch, player.TestAttack };
+    var actions = new [] { 
+      player.Idle,
+      player.Walk,
+      player.Crouch,
+      player.Jump,
+      player.Fall,
+      player.WallSlide,
+      player.Land,
+      player.PreSafetyRoll,
+      player.SafetyRoll,
+      player.TestAttack
+    };
 
     action_inspector.Draw(actions);
   }

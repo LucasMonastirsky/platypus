@@ -15,16 +15,17 @@ public class WalkPhysics : IPhysicsComponent {
 
   public float AirAccelerationTime = .3f;
   public float AirDecelerationTime = .2f;
-  public float AirPassiveDecelerationTime = .2f;
+  public float AirPassiveDecelerationTime = .5f;
 
   public float JumpTime = .3f;
   public float JumpHeight = 2.3f;
   public float JumpSharpness = 1.3f;
-  public float GravityAcceleration = 1.5f;
+  public float GravityAcceleration = 90f; // meters per second squared
+  public float HardLandingThreshold = 30f;
 
-  public float WallHangFallAcceleration = .5f;
+  public float WallHangFallAcceleration = 20f;
+  public float WallHangDeceleration = 20f;
   public float WallHangFallSpeedMax = 2f;
-  public float WallHangDeceleration = 2f;
   public float WallHangSize = .5f;
   public float WallHangOffset = .2f;
   public float WallJumpHorizontalSpeed = 10f;
@@ -39,8 +40,11 @@ public class WalkPhysics : IPhysicsComponent {
     void OnFallStart ();
     void OnJumpEnd ();
     void OnLand ();
+    void OnHardLand ();
+    void OnWallSlideStart ();
   }
-  private EventListener listener; public WalkPhysics Listen (EventListener listener) { this.listener = listener; return this; }
+  private EventListener listener;
+  public WalkPhysics Listen (EventListener listener) { this.listener = listener; return this; }
 
   private HitBox box; public HitBox Box { get { return box; } }
   private float Direction { get { return Flipped ? -1 : 1; } }
@@ -129,18 +133,21 @@ public class WalkPhysics : IPhysicsComponent {
         && Y + WallHangOffset > colliding_wall.Y
         && Y + WallHangOffset + WallHangSize < colliding_wall.YH
       ) { // Wall Hang
-        wall_hanging = true;
+        if (!wall_hanging) {
+          wall_hanging = true;
+          listener.OnWallSlideStart();
+        }
         if (velocity.y > 0) {
-          velocity.y -= WallHangDeceleration / Game.FRAME_RATE;
+          velocity.y -= (WallHangDeceleration / Game.FRAME_RATE) / Game.FRAME_RATE;
           Mathf.Clamp(velocity.y, 0, Mathf.Infinity);
         } else {
-          velocity.y -= WallHangFallAcceleration / Game.FRAME_RATE;
+          velocity.y -= (WallHangFallAcceleration / Game.FRAME_RATE) / Game.FRAME_RATE;
           Mathf.Clamp(velocity.y, -WallHangFallSpeedMax / Game.FRAME_RATE, Mathf.Infinity);
         }
         Y += velocity.y;
       } else {
         wall_hanging = false;
-        velocity.y -= GravityAcceleration / Game.FRAME_RATE;
+        velocity.y -= (GravityAcceleration / Game.FRAME_RATE) / Game.FRAME_RATE;
         Y += velocity.y;
       }
     }
@@ -193,7 +200,7 @@ public class WalkPhysics : IPhysicsComponent {
       else { // no input
         if (velocity.x != 0) {
           var old_sign = Mathf.Sign(velocity.x);
-          velocity.x -= WalkSpeed / (AirPassiveDecelerationTime * Game.FRAME_RATE) * old_sign;
+          velocity.x -= (WalkSpeed / Game.FRAME_RATE) / (AirPassiveDecelerationTime * Game.FRAME_RATE) * old_sign;
           if (old_sign != Mathf.Sign(velocity.x))
             velocity.x = 0;
         }
@@ -238,12 +245,15 @@ public class WalkPhysics : IPhysicsComponent {
   #region Input
 
   public void CheckFallCollision () {
+    var old_grounded = grounded;
     grounded = Game.CurrentChunk.Floors.Any(floor => {
       if ( (X > floor.X && X < floor.XW) || (XW > floor.X && XW < floor.XW) ) {
         if ( (previous_position.y > floor.YH && Y <= floor.YH) || Y == floor.YH ) {
           if ( Y < floor.YH ) {
             Y = floor.YH;
-            listener.OnLand();
+            if (velocity.y < -HardLandingThreshold / Game.FRAME_RATE)
+              listener.OnHardLand();
+            else listener.OnLand();
           }
           velocity.y = 0;
           return true;
@@ -251,6 +261,8 @@ public class WalkPhysics : IPhysicsComponent {
       }
       return false;
     });
+    if (old_grounded && !grounded)
+      listener.OnFallStart();
     previous_position.y = Y;
   }
 
@@ -348,8 +360,12 @@ public class WalkPhysicsEditor : Editor {
     component.WalkSpeed = EditorGUILayout.FloatField("Max Speed", component.WalkSpeed);
     component.WalkAccelerationTime = EditorGUILayout.FloatField("Acceleration Time", component.WalkAccelerationTime);
     component.WalkDecelerationTime = EditorGUILayout.FloatField("Deceleration Time", component.WalkDecelerationTime);
+
+    EditorGUILayout.LabelField("Air", EditorStyles.boldLabel);
     component.AirAccelerationTime = EditorGUILayout.FloatField("Air Acceleration Time", component.AirAccelerationTime);
     component.AirDecelerationTime = EditorGUILayout.FloatField("Air Deceleration Time", component.AirDecelerationTime);
+    component.AirPassiveDecelerationTime = EditorGUILayout.FloatField("Air Passive Deceleration Time", component.AirPassiveDecelerationTime);
+    component.HardLandingThreshold = EditorGUILayout.FloatField("Hard Landing Threshold", component.HardLandingThreshold);
 
     EditorGUILayout.Separator();
 
@@ -372,7 +388,7 @@ public class WalkPhysicsEditor : Editor {
 
       EditorGUILayout.LabelField("Velocity", EditorStyles.boldLabel);
       EditorGUILayout.Vector2Field("Per Frame", component.Velocity);
-      EditorGUILayout.Vector2Field("Per Second", component.Velocity * 60);
+      EditorGUILayout.Vector2Field("Per Second", component.Velocity * Game.FRAME_RATE);
     }
 
     if (DebugOptions.FastPlayerInspector) Repaint();

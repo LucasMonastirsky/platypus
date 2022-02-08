@@ -37,6 +37,11 @@ public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
   
     if (Input.GetButtonDown("Fire1") && physics.Grounded) TestAttack();
 
+    if (Input.GetButton("Dodge")) {
+      if (!physics.Grounded)
+        actioner.Queue(actions.PreSafetyRoll);
+    }
+
     actioner.InputDirection(Input.GetAxis("Horizontal"));
   }
 
@@ -53,6 +58,14 @@ public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
   public void OnJumpEnd () { }
   public void OnLand () {
     actioner.Queue(actions.Idle);
+  }
+  public void OnHardLand () {
+    if (actioner.CurrentAction.Name == "PreSafetyRoll")
+      actioner.Queue(actions.SafetyRoll);
+    else actioner.Queue(actions.Land);
+  }
+  public void OnWallSlideStart () {
+    actioner.Queue(actions.WallSlide);
   }
 
   #endregion
