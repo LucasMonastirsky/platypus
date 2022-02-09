@@ -28,7 +28,7 @@ public class WalkPhysics : IPhysicsComponent {
   public float WallHangFallSpeedMax = 2f;
   public float WallHangSize = .5f;
   public float WallHangOffset = .2f;
-  public float WallJumpHorizontalSpeed = 10f;
+  public float WallJumpHorizontalSpeed = 15f;
 
   public bool Flipped = false;
 
@@ -186,6 +186,8 @@ public class WalkPhysics : IPhysicsComponent {
       }
     }
     else { // if airborne
+      var passive_deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirPassiveDecelerationTime * Game.FRAME_RATE);
+
       if (input_x != 0) {
         var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirAccelerationTime * Game.FRAME_RATE);
         var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirDecelerationTime * Game.FRAME_RATE);
@@ -193,14 +195,15 @@ public class WalkPhysics : IPhysicsComponent {
         if (velocity.x == 0)
           Accelerate(acceleration_rate, WalkSpeed);
         else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x))
-          Accelerate(acceleration_rate, WalkSpeed);
+          if (Mathf.Abs(velocity.x) < WalkSpeed / Game.FRAME_RATE) Accelerate(acceleration_rate, WalkSpeed);
+          else velocity.x -= passive_deceleration_rate * input_x;
         else // input against velocity
           velocity.x += deceleration_rate * input_x;
       }
       else { // no input
         if (velocity.x != 0) {
           var old_sign = Mathf.Sign(velocity.x);
-          velocity.x -= (WalkSpeed / Game.FRAME_RATE) / (AirPassiveDecelerationTime * Game.FRAME_RATE) * old_sign;
+          velocity.x -=  passive_deceleration_rate * old_sign;
           if (old_sign != Mathf.Sign(velocity.x))
             velocity.x = 0;
         }
@@ -292,16 +295,16 @@ public class WalkPhysics : IPhysicsComponent {
     previous_position.x = X;
   }
 
+  public override void CheckCollision () {
+    CheckHorizontalCollision();
+    CheckFallCollision();
+  }
+
   public override void Displace (Vector2 displacement) {
     X += displacement.x;
     Y += displacement.y;
     if (displacement.y < 0) CheckFallCollision();
     if (displacement.x != 0) CheckHorizontalCollision();
-  }
-
-  public override void CheckCollision () {
-    CheckHorizontalCollision();
-    CheckFallCollision();
   }
 
   public void Jump () {
@@ -375,6 +378,7 @@ public class WalkPhysicsEditor : Editor {
     component.WallHangDeceleration = EditorGUILayout.FloatField("Deceleration", component.WallHangDeceleration);
     component.WallHangSize = EditorGUILayout.FloatField("Size", component.WallHangSize);
     component.WallHangOffset = EditorGUILayout.FloatField("Offset", component.WallHangOffset);
+    component.WallJumpHorizontalSpeed = EditorGUILayout.FloatField("Jump Horizontal Speed", component.WallJumpHorizontalSpeed);
 
     if (Application.isPlaying) {
       EditorGUILayout.Separator();

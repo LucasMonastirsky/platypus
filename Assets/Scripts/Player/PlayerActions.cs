@@ -60,6 +60,7 @@ public class PlayerActions : MonoBehaviour {
     Name = "Walk",
     Type = ActionType.Walk,
     Loops = true,
+    OnEnd = (actioner) => { ((WalkPhysics) actioner.Physics).Walk(0); },
     Steps = new ActionStep[] {
       new ActionStep () {
         Duration = 1,
@@ -67,7 +68,7 @@ public class PlayerActions : MonoBehaviour {
         PhysicsShape = new HitBox(0, 0, 1, 1.7f),
         OnUpdate = (actioner) => { ((WalkPhysics) actioner.Physics).Walk(actioner.Direction); }
       },
-    }
+    },
   };
 
   public Action Jump = new Action () {
@@ -120,7 +121,7 @@ public class PlayerActions : MonoBehaviour {
         Duration = 2,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
       }, new ActionStep () {
-        Duration = 10,
+        Duration = 30,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
       }, new ActionStep () {
         Duration = 2,
@@ -134,7 +135,7 @@ public class PlayerActions : MonoBehaviour {
     Type = ActionType.Other,
     Steps = new ActionStep[] {
       new ActionStep () {
-        Duration = 30,
+        Duration = 10,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
       },
     },
@@ -145,22 +146,30 @@ public class PlayerActions : MonoBehaviour {
     Type = ActionType.Other,
     Steps = new ActionStep[] {
       new ActionStep () {
-        Duration = 3,
+        Duration = 5,
+        CancellableBy = CANCELLABLE_BY.NONE,
+        AllowsFlip = true,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
         StartDisplacement = new Vector2(0, 0),
         UpdateDisplacement = new Vector2(0, 0),
       }, new ActionStep () {
-        Duration = 3,
+        Duration = 5,
+        CancellableBy = CANCELLABLE_BY.NONE,
+        AllowsFlip = false,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
         StartDisplacement = new Vector2(.5f, 0),
         UpdateDisplacement = new Vector2(.0f, 0),
       }, new ActionStep () {
         Duration = 3,
+        CancellableBy = CANCELLABLE_BY.NONE,
+        AllowsFlip = false,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
         StartDisplacement = new Vector2(.5f, 0),
         UpdateDisplacement = new Vector2(.1f, 0),
       }, new ActionStep () {
         Duration = 3,
+        CancellableBy = CANCELLABLE_BY.NONE,
+        AllowsFlip = false,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
         StartDisplacement = new Vector2(.5f, 0),
         UpdateDisplacement = new Vector2(0, 0),

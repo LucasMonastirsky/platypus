@@ -28,9 +28,6 @@ public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
       actioner.Queue(actions.Walk);
     if (actioner.CurrentAction.Name == "Walk" && Input.GetAxis("Horizontal") == 0)
       actioner.Queue(actions.Idle);
-
-    if (actioner.CurrentAction.Name == "Idle" || actioner.CurrentAction.Name == "Jump" || actioner.CurrentAction.Name == "Fall")
-      physics.Walk(Input.GetAxis("Horizontal"));
     
     if (Input.GetButtonDown("Jump")) actioner.Queue(actions.Jump);
     else if (Input.GetButtonUp("Jump")) physics.StopJump();
@@ -43,6 +40,7 @@ public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
     }
 
     actioner.InputDirection(Input.GetAxis("Horizontal"));
+    physics.Walk(Input.GetAxis("Horizontal"));
   }
 
   [ContextMenu("Test Attack")]

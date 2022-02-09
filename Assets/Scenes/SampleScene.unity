@@ -1469,7 +1469,7 @@ MonoBehaviour:
   JumpHeight: 2.3
   JumpSharpness: 1.3
   GravityAcceleration: 90
-  HardLandingThreshold: 90
+  HardLandingThreshold: 30
   WallHangFallAcceleration: 20
   WallHangDeceleration: 20
   WallHangFallSpeedMax: 2
