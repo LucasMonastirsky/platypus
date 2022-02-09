@@ -1,9 +1,8 @@
-using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-public class WalkPhysics : IPhysicsComponent {
+public class WalkPhysics : ICharacterPhysics {
 
   #region Declarations
 
@@ -19,15 +18,15 @@ public class WalkPhysics : IPhysicsComponent {
 
   public float JumpTime = .3f;
   public float JumpHeight = 2.3f;
-  public float JumpSharpness = 1.3f;
+  public float JumpSharpness = 1.3f; // the lower the value, the smoother the jump will be
   public float GravityAcceleration = 90f; // meters per second squared
-  public float HardLandingThreshold = 30f;
+  public float HardLandingThreshold = 30f; // velocity per second required to trigger a hard landing
 
   public float WallHangFallAcceleration = 20f;
   public float WallHangDeceleration = 20f;
   public float WallHangFallSpeedMax = 2f;
-  public float WallHangSize = .5f;
-  public float WallHangOffset = .2f;
+  public float WallHangSize = .5f; // vertical size of the collision box
+  public float WallHangOffset = .2f; // distance from Y that the collision box starts at
   public float WallJumpHorizontalSpeed = 15f;
 
   public bool Flipped = false;
@@ -96,6 +95,8 @@ public class WalkPhysics : IPhysicsComponent {
   #region Logic
 
   void Update () {
+    if (Paused) return;
+
     previous_position = transform.position;
     previous_position.x += OffsetHorizontal;
 
@@ -165,7 +166,7 @@ public class WalkPhysics : IPhysicsComponent {
       var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkAccelerationTime * Game.FRAME_RATE);
       var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkDecelerationTime * Game.FRAME_RATE);
 
-      if (input_x != 0) {
+      if (input_x != 0 && AllowMovement) {
         if (velocity.x == 0)
           Accelerate(acceleration_rate, WalkSpeed);
         else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x)) { // input direction equals velocity direction
@@ -176,7 +177,7 @@ public class WalkPhysics : IPhysicsComponent {
         else // walking against velocity
           velocity.x += deceleration_rate * input_x;
       }
-      else { // no input
+      else { // no input or movement is not allowed
         if (velocity.x != 0) {
           var sign = Mathf.Sign(velocity.x);
           velocity.x -= deceleration_rate * sign;
@@ -188,7 +189,7 @@ public class WalkPhysics : IPhysicsComponent {
     else { // if airborne
       var passive_deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirPassiveDecelerationTime * Game.FRAME_RATE);
 
-      if (input_x != 0) {
+      if (input_x != 0 && AllowMovement) {
         var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirAccelerationTime * Game.FRAME_RATE);
         var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirDecelerationTime * Game.FRAME_RATE);
 
@@ -200,7 +201,7 @@ public class WalkPhysics : IPhysicsComponent {
         else // input against velocity
           velocity.x += deceleration_rate * input_x;
       }
-      else { // no input
+      else { // no input or input is not allowed
         if (velocity.x != 0) {
           var old_sign = Mathf.Sign(velocity.x);
           velocity.x -=  passive_deceleration_rate * old_sign;

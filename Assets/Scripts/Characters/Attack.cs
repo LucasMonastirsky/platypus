@@ -1,10 +1,6 @@
 ﻿using UnityEngine;
 
-public class Attack : Action {
-  public Attack () : base () {
-    Type = ActionType.Attack;
-  }
-}
+public class Attack : Action { }
 
 public class AttackStep : ActionStep {
   public int Damage;

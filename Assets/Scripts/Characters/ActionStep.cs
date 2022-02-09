@@ -4,12 +4,12 @@ public class ActionStep {
   #region Options
 
   public int Duration = 1;
-  public ActionType[] CancellableBy = CANCELLABLE_BY.ALL;
   public bool AllowsFlip = true;
   public bool Freeze = false;
   public HitShape PhysicsShape;
   public Vector2 StartDisplacement, UpdateDisplacement;
   public Vector2 SpriteOffset = new Vector2(0, 0);
+  public Action.IsCancellableByDelegate IsCancellableBy;
 
   #endregion Options
 
@@ -26,19 +26,6 @@ public class ActionStep {
   public void Initialize (Action parent_action, Sprite sprite) {
     this.parent_action = parent_action;
     this.sprite = sprite;
-  }
-
-  public virtual bool IsCancellableBy (Action action) {
-    if (CancellableBy.Length < 1)
-      return false;
-    if (CancellableBy[0] == ActionType.All)
-      return true;
-
-    foreach (ActionType t in CancellableBy) {
-      if (t == action.Type) return true;
-    }
-
-    return false;
   }
 
   public virtual ActionStep Start () {
@@ -75,6 +62,6 @@ public class ActionStep {
 }
 
 public static class CANCELLABLE_BY {
-  public static ActionType[] ALL = new ActionType[] { ActionType.All, };
-  public static ActionType[] NONE = new ActionType[] { };
+  public static Action.IsCancellableByDelegate ALL = action => true;
+  public static Action.IsCancellableByDelegate NONE = action => false;
 }

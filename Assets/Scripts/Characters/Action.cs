@@ -1,22 +1,36 @@
 ﻿using UnityEngine;
 
-public enum ActionType { Walk, Jump, Dodge, Attack, Interact, Idle, Other, All }
-
 public class Action {
-  public ActionType Type;
+  #region Options
+
+  /// <value>testing testing</value>
   public string Name = "Unnamed";
-  public bool Loops = false;
+  public string[] Tags = {};
   public ActionStep[] Steps;
-  public ActionStep CurrentStep { get { return Steps[i_current_step]; } }
-  public Sprite[] Sprites;
+
+  public bool Loops = false;
+  public bool AllowMovement = false;
+  public bool PausePhysics = false;
+
+  public delegate bool IsCancellableByDelegate (Action action);
+  public IsCancellableByDelegate IsCancellableBy = CANCELLABLE_BY.ALL;
 
   public delegate void ActionEventHandler (Actioner actioner);
   public ActionEventHandler OnStart = (actioner) => {};
   public ActionEventHandler OnUpdate = (actioner) => {};
   public ActionEventHandler OnEnd = (actioner) => {};
 
+  #endregion Options
+
+  #region Vars
+
   private int i_current_step = 0;
-  public Actioner Actioner;
+  public Actioner Actioner { get; private set; }
+  public ICharacterPhysics Physics { get { return Actioner.Physics; } }
+  public Sprite[] Sprites;
+  public ActionStep CurrentStep { get { return Steps[i_current_step]; } }
+
+  #endregion Vars
 
   public void Initialize (Sprite[] sprites) {
     this.Sprites = sprites;
@@ -28,6 +42,9 @@ public class Action {
   public virtual Action Start (Actioner actioner) {
     this.Actioner = actioner;
     OnStart(actioner);
+
+    Physics.AllowMovement = AllowMovement;
+    Physics.Paused = PausePhysics;
 
     i_current_step = 0;
     Steps[i_current_step].Start();
