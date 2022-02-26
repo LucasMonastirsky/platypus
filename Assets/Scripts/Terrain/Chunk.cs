@@ -9,11 +9,6 @@ public class Chunk : MonoBehaviour {
 
   [SerializeField] private float height = 20; public float Height { get { return height; } }
 
-  private List<Tile> floors = new List<Tile>(); public List<Tile> Floors { get { return floors; } }
-  private List<Tile> ceilings = new List<Tile>(); public List<Tile> Ceilings { get { return ceilings; } } 
-  private List<Wall> walls_left = new List<Wall>(); public List<Wall> WallsLeft { get { return walls_left; } }
-  private List<Wall> walls_right = new List<Wall>(); public List<Wall> WallsRight { get { return walls_right; } }
-
   public float X {
     get { return this.transform.position.x; }
     private set { this.transform.position = new Vector3(value, this.transform.position.y, this.transform.position.z); }
@@ -27,11 +22,21 @@ public class Chunk : MonoBehaviour {
   public float XW { get { return X + Width; } }
   public float YH { get { return Y + Height; } }
 
+  #region Terrain
+
+  private List<Tile> floors = new List<Tile>(); public List<Tile> Floors { get { return floors; } }
+  private List<Tile> ceilings = new List<Tile>(); public List<Tile> Ceilings { get { return ceilings; } } 
+  private List<Wall> walls_left = new List<Wall>(); public List<Wall> WallsLeft { get { return walls_left; } }
+  private List<Wall> walls_right = new List<Wall>(); public List<Wall> WallsRight { get { return walls_right; } }
+
+  #endregion Terrain
+
+  private List<IDamageable> damageables = new List<IDamageable>(); public List<IDamageable> Damageables { get { return damageables; } }
+
   void Start () {
     #region Find Terrain
 
-    var terrain_objects = new List<GameObject>(GameObject.FindGameObjectsWithTag(TAGS.TERRAIN));
-    terrain_objects.ForEach(terrain => {
+    new List<GameObject>(GameObject.FindGameObjectsWithTag(TAGS.TERRAIN)).ForEach(terrain => {
       var terrain_pos = terrain.transform.position;
       if (terrain_pos.x >= this.X && terrain_pos.x < this.X + this.Width
       && terrain_pos.y >= this.Y && terrain_pos.y < this.Y + this.Height) {
@@ -45,6 +50,13 @@ public class Chunk : MonoBehaviour {
           if (tile.HasWallRight) walls_right.Add(tile.WallRight);
         }
       }
+    });
+    new List<GameObject>(GameObject.FindGameObjectsWithTag(TAGS.DAMAGEABLE)).ForEach(damageable => {
+      var component = damageable.GetComponent<IDamageable>();
+      if (component == null)
+        Debug.LogError("Found object with tag Damageable but not IDamageable component");
+      else
+        damageables.Add(component);
     });
 
     #endregion

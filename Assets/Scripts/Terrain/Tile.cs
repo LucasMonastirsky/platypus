@@ -5,12 +5,13 @@ public class Tile : MonoBehaviour {
 
   #region Options
 
-  [SerializeField] private float height = 1; public float Height { get { return height; } }
-  [SerializeField] private float width = 3; public float Width { get { return width; } }
-  [SerializeField] private bool has_top = true; public bool HasTop { get { return has_top; } }
-  [SerializeField] private bool has_bottom = true; public bool HasBottom { get { return has_bottom; } }
-  [SerializeField] private bool has_wall_left = true; public bool HasWallLeft { get { return has_wall_left; } }
-  [SerializeField] private bool has_wall_right = true; public bool HasWallRight { get { return has_wall_right; } }
+  [SerializeField] private float height = 1; public float Height { get => height; }
+  [SerializeField] private float width = 3; public float Width { get => width; }
+  [SerializeField] private bool has_top = true; public bool HasTop { get => has_top; }
+  [SerializeField] private bool has_bottom = true; public bool HasBottom { get => has_bottom; }
+  [SerializeField] private bool has_wall_left = true; public bool HasWallLeft { get => has_wall_left; }
+  [SerializeField] private bool has_wall_right = true; public bool HasWallRight { get => has_wall_right; }
+  [SerializeField] private bool fall_through = false; public bool FallThrough { get => fall_through; }
 
   #endregion Options
 

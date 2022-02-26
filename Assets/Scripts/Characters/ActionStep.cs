@@ -13,9 +13,9 @@ public class ActionStep {
 
   #endregion Options
 
-  public Action.ActionEventHandler OnStart = (actioner) => {};
-  public Action.ActionEventHandler OnUpdate = (actioner) => {};
-  public Action.ActionEventHandler OnEnd = (actioner) => {};
+  public Action.ActionEventHandler OnStart = (action, actioner) => {};
+  public Action.ActionEventHandler OnUpdate = (action, actioner) => {};
+  public Action.ActionEventHandler OnEnd = (action, actioner) => {};
 
   protected int frame_count; public int FrameCount { get { return frame_count; } }
   protected Sprite sprite;
@@ -36,7 +36,7 @@ public class ActionStep {
     if (StartDisplacement != null)
       physics.Displace(StartDisplacement.x * actioner.Direction, StartDisplacement.y);
 
-    OnStart(actioner);
+    OnStart(parent_action, actioner);
     Update();
   
     return this;
@@ -51,11 +51,11 @@ public class ActionStep {
     if (UpdateDisplacement != null)
       physics.Displace(UpdateDisplacement.x * actioner.Direction, UpdateDisplacement.y);
     
-    OnUpdate(actioner);
+    OnUpdate(parent_action, actioner);
   }
 
   public virtual void End () {
-    OnEnd(actioner);
+    OnEnd(parent_action, actioner);
   }
 
   public virtual void Cancel () {}

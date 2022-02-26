@@ -2,7 +2,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-public class WalkPhysics : ICharacterPhysics {
+public class WalkPhysics : IPhysicsComponent {
 
   #region Declarations
 
@@ -11,10 +11,11 @@ public class WalkPhysics : ICharacterPhysics {
   public float WalkSpeed = 8;
   public float WalkAccelerationTime = .2f;
   public float WalkDecelerationTime = .1f;
+  public float WalkOverflowDecelerationTime = .5f;
 
   public float AirAccelerationTime = .3f;
   public float AirDecelerationTime = .2f;
-  public float AirPassiveDecelerationTime = .5f;
+  public float AirPassiveDecelerationTime = 1f;
 
   public float JumpTime = .3f;
   public float JumpHeight = 2.3f;
@@ -28,6 +29,8 @@ public class WalkPhysics : ICharacterPhysics {
   public float WallHangSize = .5f; // vertical size of the collision box
   public float WallHangOffset = .2f; // distance from Y that the collision box starts at
   public float WallJumpHorizontalSpeed = 15f;
+
+  public float CompensationRate = 2; // speed of movement when compensating for the collision box overlapping a wall
 
   public bool Flipped = false;
 
@@ -54,6 +57,8 @@ public class WalkPhysics : ICharacterPhysics {
 
   [SerializeField] private float input_x;
 
+  public bool IgnorePlatforms = false;
+
   // Jumping
   private bool jumping = false; public bool Jumping { get { return jumping; } }
   [SerializeField] private float jump_elapsed_time;
@@ -62,6 +67,8 @@ public class WalkPhysics : ICharacterPhysics {
   // Wall Hang
   private Wall colliding_wall = null;
   private bool wall_hanging = false;
+
+  private Wall overlapping_wall = null;
   
   #endregion State
 
@@ -87,6 +94,8 @@ public class WalkPhysics : ICharacterPhysics {
 
   public float XW { get { return X + Box.W; } }
   public float YH { get { return Y + Box.H; } }
+
+  public float CenterX { get { return X + Box.W / 2; } }
 
   #endregion Helpers
 
@@ -165,13 +174,17 @@ public class WalkPhysics : ICharacterPhysics {
     if (grounded) {
       var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkAccelerationTime * Game.FRAME_RATE);
       var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkDecelerationTime * Game.FRAME_RATE);
+      var overflow_deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (WalkOverflowDecelerationTime * Game.FRAME_RATE);
+      Debug.Log($"{acceleration_rate} | {overflow_deceleration_rate} | {WalkOverflowDecelerationTime}");
 
       if (input_x != 0 && AllowMovement) {
         if (velocity.x == 0)
           Accelerate(acceleration_rate, WalkSpeed);
         else if (Mathf.Sign(input_x) == Mathf.Sign(velocity.x)) { // input direction equals velocity direction
-          if (Mathf.Abs(velocity.x) > WalkSpeed / Game.FRAME_RATE) // if passing top speed, decelerate
-            Accelerate(-deceleration_rate, WalkSpeed);
+          if (Mathf.Abs(velocity.x) > WalkSpeed / Game.FRAME_RATE) {// if passing top speed, decelerate
+            velocity.x -= overflow_deceleration_rate * input_x;
+            if (Mathf.Abs(velocity.x) < WalkSpeed / Game.FRAME_RATE) velocity.x = WalkSpeed * input_x / Game.FRAME_RATE;
+          }
           else Accelerate(acceleration_rate, WalkSpeed);
         }
         else // walking against velocity
@@ -189,7 +202,10 @@ public class WalkPhysics : ICharacterPhysics {
     else { // if airborne
       var passive_deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirPassiveDecelerationTime * Game.FRAME_RATE);
 
-      if (input_x != 0 && AllowMovement) {
+      if (overlapping_wall != null && ((int) overlapping_wall.Side) != Mathf.Sign(velocity.x)) {
+        velocity.x = 0;
+      }
+      else if (input_x != 0 && AllowMovement) {
         var acceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirAccelerationTime * Game.FRAME_RATE);
         var deceleration_rate = (WalkSpeed / Game.FRAME_RATE) / (AirDecelerationTime * Game.FRAME_RATE);
 
@@ -218,6 +234,27 @@ public class WalkPhysics : ICharacterPhysics {
     CheckFallCollision();
     CheckHorizontalCollision();
 
+    // compensate position if overlapping a wall
+    if (overlapping_wall != null) {
+      if ( Y < overlapping_wall.Y && YH < overlapping_wall.Y ) {
+        overlapping_wall = null;
+      }
+      else if (overlapping_wall.Side == SIDE.LEFT) {
+        if (input_x != -1) X -= CompensationRate / Game.FRAME_RATE;
+        if ( XW < overlapping_wall.X ) {
+          X = overlapping_wall.X - Box.W;
+          overlapping_wall = null;
+        }
+      }
+      else {
+        if (input_x != 1) X += CompensationRate / Game.FRAME_RATE;
+        if ( X > overlapping_wall.X ) {
+          X = overlapping_wall.X;
+          overlapping_wall = null;
+        }  
+      }
+    }
+
     #region Debug
 
     if (DebugOptions.DrawPlayerMovementCollision) {
@@ -231,10 +268,10 @@ public class WalkPhysics : ICharacterPhysics {
     if (DebugOptions.DrawPlayerMovementInputs) {
       var mid = new Vector2(X + Box.W / 2, Y + Box.H / 2);
 
-      if (input_x != 0) {
+      // if (input_x != 0) {
         DebugUtils.DrawThickLine(mid.x, Y, input_x == 1 ? XW : X, Y, Color.white);
         DebugUtils.DrawThickLine(mid.x, Y, mid.x + Box.W / 2 * (Velocity.x / (WalkSpeed / Game.FRAME_RATE)), Y, Color.red);
-      }
+      // }
       if (jumping) {
         DebugUtils.DrawThickLine(mid.x, mid.y, mid.x, YH, Color.white);
         DebugUtils.DrawThickLine(mid.x, mid.y, mid.x, mid.y + (Box.H / 2) * (jump_elapsed_time / JumpTime), Color.red);
@@ -251,7 +288,9 @@ public class WalkPhysics : ICharacterPhysics {
   public void CheckFallCollision () {
     var old_grounded = grounded;
     grounded = Game.CurrentChunk.Floors.Any(floor => {
-      if ( (X > floor.X && X < floor.XW) || (XW > floor.X && XW < floor.XW) ) {
+      if ( floor.FallThrough && IgnorePlatforms ) return false;
+
+      if (CenterX > floor.X && CenterX < floor.XW) {
         if ( (previous_position.y > floor.YH && Y <= floor.YH) || Y == floor.YH ) {
           if ( Y < floor.YH ) {
             Y = floor.YH;
@@ -261,6 +300,14 @@ public class WalkPhysics : ICharacterPhysics {
           }
           velocity.y = 0;
           return true;
+        }
+      }
+      else if (!floor.FallThrough && Y >= floor.Y && Y <= floor.YH ) {
+        if ( floor.HasWallLeft && XW > floor.X && XW < floor.XW ) {
+          overlapping_wall = floor.WallLeft;
+        }
+        else if ( floor.HasWallRight && X > floor.X && X < floor.XW ) {
+          overlapping_wall = floor.WallRight;
         }
       }
       return false;
@@ -306,6 +353,10 @@ public class WalkPhysics : ICharacterPhysics {
     Y += displacement.y;
     if (displacement.y < 0) CheckFallCollision();
     if (displacement.x != 0) CheckHorizontalCollision();
+  }
+
+  public void SetVelocity (float x, float y) {
+    velocity.x = x;
   }
 
   public void Jump () {
@@ -364,12 +415,14 @@ public class WalkPhysicsEditor : Editor {
     component.WalkSpeed = EditorGUILayout.FloatField("Max Speed", component.WalkSpeed);
     component.WalkAccelerationTime = EditorGUILayout.FloatField("Acceleration Time", component.WalkAccelerationTime);
     component.WalkDecelerationTime = EditorGUILayout.FloatField("Deceleration Time", component.WalkDecelerationTime);
+    component.WalkOverflowDecelerationTime = EditorGUILayout.FloatField("Overflow Deceleration Time", component.WalkOverflowDecelerationTime);
 
     EditorGUILayout.LabelField("Air", EditorStyles.boldLabel);
     component.AirAccelerationTime = EditorGUILayout.FloatField("Air Acceleration Time", component.AirAccelerationTime);
     component.AirDecelerationTime = EditorGUILayout.FloatField("Air Deceleration Time", component.AirDecelerationTime);
     component.AirPassiveDecelerationTime = EditorGUILayout.FloatField("Air Passive Deceleration Time", component.AirPassiveDecelerationTime);
     component.HardLandingThreshold = EditorGUILayout.FloatField("Hard Landing Threshold", component.HardLandingThreshold);
+    component.CompensationRate = EditorGUILayout.FloatField("Overlap Compensation Rate", component.CompensationRate);
 
     EditorGUILayout.Separator();
 

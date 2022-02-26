@@ -1,13 +1,13 @@
-﻿using UnityEditor;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Game : MonoBehaviour {
+  private static Game instance;
+
   public static int FRAME_RATE = 60;
   public int FrameRate = 60;
 
   [SerializeField] private Chunk current_chunk;
   public static Chunk CurrentChunk { get { return instance.current_chunk; } }
-  private static Game instance;
 
   void Awake () {
     Application.targetFrameRate = FRAME_RATE;
@@ -18,5 +18,3 @@ public class Game : MonoBehaviour {
     Application.targetFrameRate = FrameRate;
   }
 }
-
-

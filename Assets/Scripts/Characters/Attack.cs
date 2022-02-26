@@ -4,7 +4,7 @@ public class Attack : Action { }
 
 public class AttackStep : ActionStep {
   public int Damage;
-  public HitBox AttackShape;
+  public HitShape AttackShape;
 
   public override ActionStep Start () {
     if (AttackShape != null) {
@@ -15,8 +15,15 @@ public class AttackStep : ActionStep {
   }
 
   public override void Update () {
-    if (DebugOptions.DrawAttackHitShapes && AttackShape != null)
-      AttackShape.Draw(Color.green);
+    if (AttackShape != null) {
+      var hits = Game.CurrentChunk.Damageables.FindAll(target => AttackShape.Overlaps(target.Shape));
+      if (hits.Count > 0)
+        Debug.Log("HIT!");
+
+      if (DebugOptions.DrawAttackHitShapes)
+        AttackShape.Draw(Color.green);
+    }
+
     base.Update();
   }
 }

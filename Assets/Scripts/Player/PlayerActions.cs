@@ -57,13 +57,13 @@ public class PlayerActions : MonoBehaviour {
     Name = "Walk",
     Loops = true,
     AllowMovement = true,
-    OnEnd = (actioner) => { ((WalkPhysics) actioner.Physics).Walk(0); },
+    OnEnd = (action, actioner) => { ((WalkPhysics) actioner.Physics).Walk(0); },
     Steps = new ActionStep[] {
       new ActionStep () {
         Duration = 1,
         IsCancellableBy = CANCELLABLE_BY.ALL,
         PhysicsShape = new HitBox(0, 0, 1, 1.7f),
-        OnUpdate = (actioner) => { ((WalkPhysics) actioner.Physics).Walk(actioner.Direction); }
+        OnUpdate = (action, actioner) => { ((WalkPhysics) actioner.Physics).Walk(actioner.Direction); }
       },
     },
   };
@@ -78,7 +78,7 @@ public class PlayerActions : MonoBehaviour {
         PhysicsShape = new HitBox(0, 0, 1, 1.7f),
       },
     },
-    OnStart = (actioner) => { ((WalkPhysics) actioner.Physics).Jump(); }
+    OnStart = (action, actioner) => { ((WalkPhysics) actioner.Physics).Jump(); }
   };
 
   public Action Fall = new Action () {
@@ -108,9 +108,21 @@ public class PlayerActions : MonoBehaviour {
     }
   };
 
-  public Action Land = new Action () {
+  public class ActionWithVelocity : Action {
+    public float Velocity;
+    public delegate void OnVelocitySetDel (float velocity, ActionWithVelocity action);
+    public OnVelocitySetDel OnVelocitySet = (velocity, action) => { action.Velocity = velocity; };
+    public Action WithVelocity (float velocity) {
+      Velocity = velocity;
+      OnVelocitySet(velocity, this);
+      return this;
+    }
+  }
+  public Action Land = new ActionWithVelocity () {
     Name = "Land",
     Loops = false,
+    IsCancellableBy = CANCELLABLE_BY.NONE,
+    OnVelocitySet = (velocity, action) => { action.Steps[1].Duration = (int) (-velocity * Game.FRAME_RATE); },
     Steps = new ActionStep[] {
       new ActionStep () {
         Duration = 2,
@@ -136,30 +148,34 @@ public class PlayerActions : MonoBehaviour {
     },
   };
 
-  public Action SafetyRoll = new Action () {
+  public Action SafetyRoll = new ActionWithVelocity () {
     Name = "SafetyRoll",
     Steps = new ActionStep[] {
       new ActionStep () {
-        Duration = 5,
+        Duration = 2,
         IsCancellableBy = CANCELLABLE_BY.NONE,
         AllowsFlip = true,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
         StartDisplacement = new Vector2(0, 0),
         UpdateDisplacement = new Vector2(0, 0),
       }, new ActionStep () {
-        Duration = 5,
+        Duration = 3,
         IsCancellableBy = CANCELLABLE_BY.NONE,
         AllowsFlip = false,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
         StartDisplacement = new Vector2(.5f, 0),
         UpdateDisplacement = new Vector2(.0f, 0),
       }, new ActionStep () {
-        Duration = 3,
+        Duration = 5,
         IsCancellableBy = CANCELLABLE_BY.NONE,
         AllowsFlip = false,
         PhysicsShape = new HitBox(0, 0, 1, 1f),
         StartDisplacement = new Vector2(.5f, 0),
         UpdateDisplacement = new Vector2(.1f, 0),
+        OnStart = (action, actioner) => {
+          var velocity = ((ActionWithVelocity) action).Velocity;
+          actioner.Physics.SetVelocity(-velocity * actioner.Direction, 0);
+        },
       }, new ActionStep () {
         Duration = 3,
         IsCancellableBy = CANCELLABLE_BY.NONE,

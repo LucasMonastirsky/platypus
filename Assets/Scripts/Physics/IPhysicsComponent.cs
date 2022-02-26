@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public abstract class ICharacterPhysics : MonoBehaviour {
+public abstract class IPhysicsComponent : MonoBehaviour {
   public abstract HitShape Shape { get; set; }
   public abstract float X { get; set; }
   public abstract float Y { get; set; }

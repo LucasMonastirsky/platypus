@@ -16,6 +16,11 @@ public abstract class HitShape {
     this.transform = transform;
     return this;
   }
+
+  public abstract bool Overlaps (HitShape other);
+  public abstract bool Overlaps (Vector2 point);
+  public bool Overlaps (float x, float y) { return Overlaps(new Vector2(x, y)); }
+
   public abstract void Draw (Color color);
 }
 
@@ -31,6 +36,37 @@ public class HitBox : HitShape {
 
   public HitBox (float offset_x, float offset_y, float w, float h) {
     OffsetX = offset_x; OffsetY = offset_y; W = w; H = h;
+  }
+
+  public override bool Overlaps (HitShape other) {
+    if (other is HitBox) {
+      var box = (HitBox) other;
+
+      if (X < box.X)
+        if (XW > box.X)
+          return (Y > box.Y)
+            ? Y < box.YH
+            : YH > box.Y;
+        else return false;
+      else
+        if (X < box.XW)
+          return (Y > box.Y)
+            ? Y < box.YH
+            : YH > box.Y;
+        else return false;
+    }
+
+    Debug.LogError("Unhandled type in HitShape.Overlap");
+    return false;
+  }
+
+  public override bool Overlaps(Vector2 point) {
+    return (
+      point.x > X
+      && point.x < XW
+      && point.y > Y
+      && point.y < YH
+    );
   }
 
   public override void Draw (Color color) {

@@ -29,7 +29,7 @@ public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
     if (actioner.CurrentAction.Name == "Walk" && Input.GetAxis("Horizontal") == 0)
       actioner.Queue(actions.Idle);
     
-    if (Input.GetButtonDown("Jump")) actioner.Queue(actions.Jump);
+    if (Input.GetButtonDown("Jump") && !Input.GetButton("Crouch")) actioner.Queue(actions.Jump);
     else if (Input.GetButtonUp("Jump")) physics.StopJump();
   
     if (Input.GetButtonDown("Fire1") && physics.Grounded) TestAttack();
@@ -41,6 +41,12 @@ public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
 
     actioner.InputDirection(Input.GetAxis("Horizontal"));
     physics.Walk(Input.GetAxis("Horizontal"));
+
+    physics.IgnorePlatforms = (
+      (actioner.CurrentAction.Name == "Crouch" || actioner.CurrentAction.Name == "Fall")
+      && Input.GetButton("Crouch")
+      && Input.GetButton("Jump")
+    );
   }
 
   [ContextMenu("Test Attack")]
@@ -58,9 +64,8 @@ public class PlayerInput : MonoBehaviour, WalkPhysics.EventListener {
     actioner.Queue(actions.Idle);
   }
   public void OnHardLand () {
-    if (actioner.CurrentAction.Name == "PreSafetyRoll")
-      actioner.Queue(actions.SafetyRoll);
-    else actioner.Queue(actions.Land);
+    var action = (PlayerActions.ActionWithVelocity) (actioner.CurrentAction.Name == "PreSafetyRoll" ? actions.SafetyRoll : actions.Land);
+    actioner.Queue(action.WithVelocity(physics.Velocity.y));
   }
   public void OnWallSlideStart () {
     actioner.Queue(actions.WallSlide);

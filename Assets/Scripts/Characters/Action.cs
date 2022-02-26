@@ -3,7 +3,6 @@
 public class Action {
   #region Options
 
-  /// <value>testing testing</value>
   public string Name = "Unnamed";
   public string[] Tags = {};
   public ActionStep[] Steps;
@@ -15,10 +14,10 @@ public class Action {
   public delegate bool IsCancellableByDelegate (Action action);
   public IsCancellableByDelegate IsCancellableBy = CANCELLABLE_BY.ALL;
 
-  public delegate void ActionEventHandler (Actioner actioner);
-  public ActionEventHandler OnStart = (actioner) => {};
-  public ActionEventHandler OnUpdate = (actioner) => {};
-  public ActionEventHandler OnEnd = (actioner) => {};
+  public delegate void ActionEventHandler (Action action, Actioner actioner);
+  public ActionEventHandler OnStart = (action, actioner) => {};
+  public ActionEventHandler OnUpdate = (action, actioner) => {};
+  public ActionEventHandler OnEnd = (action, actioner) => {};
 
   #endregion Options
 
@@ -26,7 +25,7 @@ public class Action {
 
   private int i_current_step = 0;
   public Actioner Actioner { get; private set; }
-  public ICharacterPhysics Physics { get { return Actioner.Physics; } }
+  public IPhysicsComponent Physics { get { return Actioner.Physics; } }
   public Sprite[] Sprites;
   public ActionStep CurrentStep { get { return Steps[i_current_step]; } }
 
@@ -41,7 +40,7 @@ public class Action {
 
   public virtual Action Start (Actioner actioner) {
     this.Actioner = actioner;
-    OnStart(actioner);
+    OnStart(this, actioner);
 
     Physics.AllowMovement = AllowMovement;
     Physics.Paused = PausePhysics;
@@ -53,7 +52,7 @@ public class Action {
 
   public virtual void Update () {
     CurrentStep.Update();
-    OnUpdate(Actioner);
+    OnUpdate(this, Actioner);
   }
 
   public void NextStep () {
@@ -64,7 +63,7 @@ public class Action {
   }
 
   public virtual void End () {
-    OnEnd(Actioner);
+    OnEnd(this, Actioner);
     if (Loops) Start(Actioner);
     else Actioner.OnActionEnd();
   }
